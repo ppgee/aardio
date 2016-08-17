@@ -5,6 +5,7 @@ import web.form;
 import web.mshtml;
 import web.util;
 import inet.http;
+import fsys;
 import fsys.table;
 import string.html;
 /*DSG{{*/
@@ -12,17 +13,22 @@ mainForm = win.form(text="aardio form";right=928;bottom=814)
 mainForm.add(
 button={cls="button";text="获取交易记录";left=631;top=435;right=900;bottom=489;z=4};
 custom={cls="custom";text="custom";left=14;top=12;right=900;bottom=420;autosize=1;center=1;edge=1;transparent=1;z=3};
+edit={cls="edit";left=111;top=582;right=143;bottom=605;edge=1;num=1;z=6};
 groupbox={cls="groupbox";text="异步通知";left=14;top=430;right=612;bottom=624;edge=1;z=1};
-listview={cls="listview";left=14;top=12;right=900;bottom=420;edge=1;z=2}
+listview={cls="listview";left=14;top=12;right=900;bottom=420;edge=1;z=2};
+static={cls="static";text="刷新时间：";left=47;top=586;right=112;bottom=603;transparent=1;z=5};
+static2={cls="static";text="秒";left=151;top=586;right=191;bottom=603;transparent=1;z=7}
 )
 /*}}*/
 
+mainForm.edit.setParent(mainForm.groupbox);
+mainForm.edit.oncommand = function(id,event){
+	//mainForm.msgbox( mainForm.edit.text );
+}
 mainForm.custom.oncommand = function(id,event){
 	//mainForm.msgbox( mainForm.custom.text );
 	
 }
-
-var tradesTable = {};
 
 var wb = web.form( mainForm.custom ); 
 
@@ -34,14 +40,47 @@ wb.wait(""); //等待指定网址
 wb.go("https://consumeprod.alipay.com:443/record/index.htm");
 
 mainForm.button.oncommand = function(id,event){
-	getTradesTable();
+	if(mainForm.edit.text!=""){
+		setTradeStatus();
+		run();
+		var tmId = mainForm.addtimer( 
+			(tonumber(mainForm.edit.text))*1000,
+			function(hwnd,msg,id,tick){
+				wb.go("https://consumeprod.alipay.com:443/record/index.htm");
+				wb.wait("");
+				setTradeStatus();
+				run();
+			} 
+		)
+	} else {
+		mainForm.msgbox("请设置刷新时间！")
+	}
 	
-	mainForm.listview.insertColumn("创建时间",150,,0x0/*_LVCFMT_LEFT*/);
-	mainForm.listview.insertColumn("交易名称",150,,0x0/*_LVCFMT_LEFT*/);
-	mainForm.listview.insertColumn("商户订单号|交易号",300,,0x0/*_LVCFMT_LEFT*/);
-	mainForm.listview.insertColumn("对方",100,,0x0/*_LVCFMT_LEFT*/);
-	mainForm.listview.insertColumn("金额",100,,0x0/*_LVCFMT_LEFT*/);
-	mainForm.listview.insertColumn("状态",100,,0x0/*_LVCFMT_LEFT*/);
+}
+
+mainForm.groupbox.oncommand = function(id,event){
+	//mainForm.msgbox( mainForm.groupbox.text );
+	
+}
+
+function setTradeStatus(){
+	var tradeStatus = wb.getEle("tradeStatus");
+	tradeStatus.selectedIndex = 6;
+	var fundFlow = wb.getEle("fundFlow");
+	fundFlow.selectedIndex = 1;
+	//var tradeType = wb.getEle("tradeType");
+	//tradeType.innerHTML = "转账";
+	var setQueryForm = wb.getEle("J-set-query-form");
+	setQueryForm.click();
+}
+
+
+function run(){
+	wb.wait(""); //等待指定网址
+	
+	var tradesTable = {};
+	getTradesTable(tradesTable);
+	mainForm.listview.clear();
 	
 	for k,v in tradesTable  { 
 	//k为键,v是匹配的值,在这里键值对无序的随机出现。
@@ -52,16 +91,8 @@ mainForm.button.oncommand = function(id,event){
 	mainForm.listview.show(true);
 }
 
-mainForm.groupbox.oncommand = function(id,event){
-	//mainForm.msgbox( mainForm.groupbox.text );
-}
-import thread.command;
-var listener = thread.command();
-listener.print = function( ... ){
-    mainForm.edit.print( ... ) //将线程传过来的参数追加输出到文本框
-} 
 
-function getTradesTable(){
+function getTradesTable(tradesTable){
 	var oTable = wb.getEle("tradeRecordsIndex");
 	var aTr = oTable.getElementsByTagName("tr");
 	for( i=1;aTr.length-1;1) {
@@ -98,35 +129,25 @@ function getTradesTable(){
 				table.push(oTradeCell, content);
 			}
 		}
-		table.push(tradesTable,oTradeCell);
-	}
+		table.push(tradesTable,oTradeCell);}
 	var nextPage = wb.queryEles( className="page-next" );
-	if(nextPage.innerHTML == "下一页&gt;"){
+	if(nextPage.hasChildNodes){
 		nextPage.click();
 		wb.wait("");
 		getTradesTable(tradesTable);
 	}
 }
 
+
+mainForm.listview.insertColumn("创建时间",150,,0x0/*_LVCFMT_LEFT*/);
+mainForm.listview.insertColumn("交易名称",150,,0x0/*_LVCFMT_LEFT*/);
+mainForm.listview.insertColumn("商户订单号|交易号",300,,0x0/*_LVCFMT_LEFT*/);
+mainForm.listview.insertColumn("对方",100,,0x0/*_LVCFMT_LEFT*/);
+mainForm.listview.insertColumn("金额",100,,0x0/*_LVCFMT_LEFT*/);
+mainForm.listview.insertColumn("状态",100,,0x0/*_LVCFMT_LEFT*/);
 mainForm.listview.onnotify = function(id,code,ptr){
 	
 }
-
-//创建工作线程,线程内错误信息默认输出到控制台
-thread.invoke(
-
-    function(hwnd){ 
-    
-        //必须在线程函数内部导入需要的库
-        import thread.command;
-        
-        //调用界面线程的命令
-        //thread.command.print("hello world",1,2,3);
-        
-        //也可以用post方法异步调用线程命令,不会等待调用完成
-        //thread.command.post("print","hello world",1,2,3);
-    } 
-);
 
 mainForm.show() 
 return win.loopMessage(); 
