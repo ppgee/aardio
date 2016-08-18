@@ -68,8 +68,8 @@ function setTradeStatus(){
 	tradeStatus.selectedIndex = 6;
 	var fundFlow = wb.getEle("fundFlow");
 	fundFlow.selectedIndex = 1;
-	//var tradeType = wb.getEle("tradeType");
-	//tradeType.innerHTML = "转账";
+	var aTradeType = wb.jQuery("li[data-value='TRANSFER']");
+	aTradeType[0].click();
 	var setQueryForm = wb.getEle("J-set-query-form");
 	setQueryForm.click();
 }
