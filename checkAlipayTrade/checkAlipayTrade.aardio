@@ -8,6 +8,7 @@ import inet.http;
 import fsys;
 import fsys.table;
 import string.html;
+import sqlite;
 /*DSG{{*/
 mainForm = win.form(text="aardio form";right=928;bottom=814)
 mainForm.add(
@@ -21,9 +22,13 @@ static2={cls="static";text="秒";left=151;top=586;right=191;bottom=603;transpare
 )
 /*}}*/
 
+import config;
+config.mainForm.load();
+
 mainForm.edit.setParent(mainForm.groupbox);
 mainForm.edit.oncommand = function(id,event){
 	//mainForm.msgbox( mainForm.edit.text );
+	config.mainForm.save();
 }
 mainForm.custom.oncommand = function(id,event){
 	//mainForm.msgbox( mainForm.custom.text );
@@ -85,6 +90,20 @@ function run(){
 	getTradesTable(tradesTable);
 	mainForm.listview.clear();
 	
+	var sqlConnection = sqlite("/data.db");
+	
+	if( not sqlConnection.existsTable("tradedata") ){
+		sqlConnection.exec("create table tradedata(
+			tradeNum TEXT NOT NULL UNIQUE,
+			cTime TEXT NOT NULL,
+			tradeName TEXT NOT NULL,
+			theOtherSide TEXT NOT NULL,
+			money TEXT NOT NULL,
+			status TEXT NOT NULL,
+			result TEXT
+		);");
+	}
+	
 	for k,v in tradesTable  { 
 	//k为键,v是匹配的值,在这里键值对无序的随机出现。
 		cTime, tradeName, tradeNum, theOtherSide, money, status = table.unpack(v);//获取table中列数据
@@ -96,6 +115,7 @@ function run(){
 		tradeNum = string.replace(tradeNum,"@流水号:","");
 		
 		mainForm.listview.addItem({cTime; tradeName; tradeNum; theOtherSide; money; status});//将数据加载到列表视图
+		sqlConnection.exec("INSERT OR IGNORE INTO tradedata(tradeNum,cTime,tradeName,theOtherSide,money,status) VALUES ('%s','%s','%s','%s','%s','%s');",tradeNum,cTime,tradeName,theOtherSide,money,status);	
 	};
 	
 	mainForm.custom.show(false);
