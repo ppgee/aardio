@@ -4,6 +4,7 @@ import win.ui.minmax;
 import console;
 import win.ui.atom;
 import win.clip.viewer;
+import web.json;
 import web.form;
 import web.mshtml;
 import web.util;
@@ -14,12 +15,12 @@ import fsys.table;
 import string.html;
 import sqlite;
 /*DSG{{*/
-mainForm = win.form(text="aardio form";right=928;bottom=814)
+mainForm = win.form(text="aardio form";right=928;bottom=814;max=false)
 mainForm.add(
 button={cls="button";text="保存设置";left=391;top=568;right=511;bottom=603;z=13};
 combobox={cls="combobox";left=115;top=502;right=209;bottom=522;edge=1;items={"utf-8"};mode="dropdown";z=14};
-custom={cls="custom";text="custom";left=14;top=12;right=900;bottom=420;autosize=1;center=1;edge=1;transparent=1;z=4};
-custom2={cls="custom";text="custom";left=14;top=12;right=900;bottom=420;autosize=1;center=1;edge=1;transparent=1;z=3};
+custom={cls="custom";text="custom";left=14;top=12;right=900;bottom=420;autosize=1;center=1;transparent=1;z=4};
+custom2={cls="custom";text="custom";left=14;top=12;right=900;bottom=420;autosize=1;center=1;edge=1;hide=1;transparent=1;z=3};
 edit={cls="edit";left=115;top=580;right=147;bottom=603;edge=1;num=1;z=6};
 edit2={cls="edit";left=115;top=458;right=558;bottom=481;edge=1;z=11};
 edit3={cls="edit";left=115;top=539;right=344;bottom=562;edge=1;password=1;z=12};
@@ -33,11 +34,11 @@ static5={cls="static";text="接口密钥：";left=47;top=545;right=112;bottom=56
 )
 /*}}*/
 
-var iAddress = mainForm.edit2.text;
-var iAddressKey = mainForm.edit3.text;
-
 import config;
 config.mainForm.load();
+
+var iAddress = config.mainForm.edit2;
+var iAddressKey = config.mainForm.edit3;
 
 fsys.file("/logs.txt", "a+");
 string.load("/logs.txt");
@@ -70,7 +71,6 @@ mainForm.button.oncommand = function(id,event){
 }
 
 mainForm.listbox.show(false);
-mainForm.custom2.show(false);
 
 var wb = web.form( mainForm.custom ); 
 var wb2 = web.form( mainForm.custom2 );
@@ -82,11 +82,36 @@ wb.post("https://consumeprod.alipay.com/record/advanced.htm","");
 wb.NavigateComplete2 = function(pDisp, url) {
 	i,j = string.find(url, "@https://consumeprod.alipay.com/record/advanced.htm");
 	i2,j2 = string.find(url, "@my.alipay.com/wealth");
+	i3,j3 = string.find(url, "@https://consumeprod.alipay.com/record/standard.htm");
 	if(i || i2){
 		runGetData();	
+	} elseif(i3){
+		wb.go("https://consumeprod.alipay.com/record/switchVersion.htm");
 	}
 }
 
+var tmIdWb = mainForm.addtimer( 
+	60000,
+	function(hwnd,msg,id,tick){	
+		try{
+			import thread.command;
+			var listener = thread.command();
+			listener.refreshWb = function(){
+				wb.go("https://custweb.alipay.com/account/index.htm");
+			}	
+		
+			thread.invoke( 
+				function(){
+					import thread.command;
+					thread.command.refreshWb();
+				}
+			)
+		}
+		catch(e){
+			string.save("/logs.txt", e, true );
+		}
+	} 
+)
 
 function runGetData(){
 	mainForm.custom.show(false);
@@ -97,22 +122,20 @@ function runGetData(){
 			function(hwnd,msg,id,tick){
 				mainForm.listbox.show(true);
 				mainForm.add( 
-					custom2={cls="custom";text="custom";left=14;top=12;right=900;bottom=420;autosize=1;center=1;edge=1;transparent=1;z=3};
-				)
-				mainForm.custom2.show(false);
+					custom2={cls="custom";text="custom";left=14;top=12;right=900;bottom=420;autosize=1;center=1;hide=1;edge=1;transparent=1;z=3};
+				);
 				wb2 = web.form( mainForm.custom2 );
 				wb2.noScriptErr = true;
 				wb2.post("https://consumeprod.alipay.com/record/advanced.htm","");
 				wb2.wait("");
 				setTradeStatus();
 				run();
-				wb.refresh3();
 				mainForm.custom2.close();
 			} 			
 		)
 	} else {
-		mainForm.msgbox("请设置刷新时间！");
-		string.save("/logs.txt", "请设置刷新时间！", append=true );
+		//mainForm.msgbox("请设置刷新时间！");
+		string.save("/logs.txt", "请设置刷新时间！",true);
 	}
 }
 
@@ -133,9 +156,8 @@ function setTradeStatus(){
 		return;
 	}
 	catch(e){
-		mainForm.msgbox("错误信息："+e);
-		var errorInfo = "错误信息："+e;
-		string.save("/logs.txt", errorInfo, append=true );
+		//mainForm.msgbox("错误信息："+e);
+		string.save("/logs.txt", e, true );
 	}
 }
 
@@ -173,22 +195,31 @@ function run(){
 		
 		tOSStr = string.html.toText(theOtherSide);
 		
-		var http = inet.http();
-		var postData = "tradeNo=" + tradeNum + "&tradeAmount=" + money;
-		var html,err,errCode = http.post(iAddress,postData,iAddressKey);
-		http.close();
-		
 		results = "";
 		
+		var http = inet.http();
+		header = { ApiKey =  iAddressKey  };
+		var postData = "tradeNo=" + tradeNum + "&tradeAmount=" + money;
+		var urlByGet = iAddress+postData
+		
+		var html,err,errCode = http.post(iAddress,postData,header);
+		
+		http.close();
+		
 		if(html){
-			results = html
+			var strHtml = string.html.toText(html);
+			string.trim(strHtml);
+			results = strHtml;
 		} else {
 			if(http.statusCode){
 				results = http.lastResponse() + "HTTP错误代码：" + http.statusCode;
+				string.save("/logs.txt", err, true );
 			} else {
 				results = err;
+				string.save("/logs.txt", err, true );
 			}
 		}
+		
 		
 		mainForm.listbox.addItem({tradeNum; cTime; tradeName; tOSStr; money; status; results});//将数据加载到列表视图
 		sqlConnection.exec("INSERT OR IGNORE INTO tradedata(tradeNum,cTime,tradeName,theOtherSide,money,status) VALUES ('%s','%s','%s','%s','%s','%s');",tradeNum,cTime,tradeName,theOtherSide,money,status);	
@@ -230,7 +261,7 @@ function getTradesTable(tradesTable){
 		return;
 	}
 	catch(e){
-		string.save("/logs.txt", e, append=true );
+		string.save("/logs.txt", e, true );
 	}
 }
 
@@ -255,8 +286,9 @@ mainForm.popmenu.add('重新发送HTTP通知',function(id){
 		var acount = mainForm.listbox.getItemText(mainForm.listbox.selIndex,5);
 		
 		var http = inet.http();
-		var postData = "tradeNo=" + num + "&tradeAmount=" + acount;
-		var html,err,errCode = http.post(iAddress,postData,iAddressKey);
+		header = { apikey = iAddressKey }
+		var postData = "tradeNo=" + tradeNum + "&tradeAmount=" + money;
+		var html,err,errCode = http.get(urlByGet,header);
 		http.close();
 		
 		results = "";
@@ -266,10 +298,10 @@ mainForm.popmenu.add('重新发送HTTP通知',function(id){
 		} else {
 			if(http.statusCode){
 				results = http.lastResponse() + "HTTP错误代码：" + http.statusCode;
-				string.save("/logs.txt", e, append=true );
+				string.save("/logs.txt", err, true );
 			} else {
 				results = err;
-				string.save("/logs.txt", e, append=true );
+				string.save("/logs.txt", err, true );
 			}
 		}
 		
