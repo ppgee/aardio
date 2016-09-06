@@ -20,6 +20,10 @@
 5. 添加listview控件，设定列名，这里需要对listview隐藏，不然web窗口影响点击
 6. 数据输出在listview中，然后对custom控件隐藏，对listview隐藏
 
+###出现问题和解决
+1. 出现弹窗，类似于ACTIVEX和脚本错误信息的,全部取消弹窗：wb.silent = true;如只需取消脚本错误信息的：wb.noScriptErr = true;
+2. 在服务器系统下显示“IE增强安全配置正在阻止来自下列网站的此应用程序中的内容。”,因为这里我用到了mshtml所以报的警告,所以只要：var targetHtml = web.mshtml();targetHtml.document.designMode = "on";即可
+
 ###结束语
 可能这做法不够好，所以自己会尽量让自己的代码完善一些
 **愿世界和平**
